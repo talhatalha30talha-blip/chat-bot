@@ -1,0 +1,58 @@
+import json
+import os
+from contextlib import asynccontextmanager
+from dotenv import load_dotenv
+from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+from langchain_core.messages import HumanMessage
+from graph import build_graph
+
+load_dotenv()
+
+# Build the graph once at startup and reuse it across requests.
+graph = build_graph()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+
+app = FastAPI(title="Quality Resource LLC Chatbot", lifespan=lifespan)
+
+class ChatRequest(BaseModel):
+    message: str
+    thread_id: str = "default"
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+@app.post("/chat")
+def chat(req: ChatRequest):
+    """Synchronous chat: returns the full assistant reply as JSON."""
+    config = {"configurable": {"thread_id": req.thread_id}}
+    result = graph.invoke(
+        {"messages": [HumanMessage(content=req.message)]},
+        config=config
+    )
+    reply = result["messages"][-1].content
+    return {"reply": reply, "thread_id": req.thread_id}
+
+@app.post("/chat/stream")
+async def chat_stream(req: ChatRequest):
+    """Streaming chat: yields Server-Sent Events as the model generates tokens."""
+    config = {"configurable": {"thread_id": req.thread_id}}
+
+    async def event_generator():
+        async for event in graph.astream_events(
+            {"messages": [HumanMessage(content=req.message)]},
+            config=config,
+            version="v2",
+        ):
+            if event["event"] == "on_chat_model_stream":
+                chunk = event["data"]["chunk"]
+                if chunk.content:
+                    yield f"data: {json.dumps({'token': chunk.content})}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
