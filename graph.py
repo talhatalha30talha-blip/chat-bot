@@ -18,3 +18,14 @@ def build_graph() -> StateGraph:
         base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
         temperature=0.0,
     )
+
+    def call_model(state: ChatState) -> dict:
+        """Node: send the full conversation to the model and return its reply."""
+        response = llm.invoke(state["messages"])
+        return {"messages": [response]}
+
+    builder = StateGraph(ChatState)
+    builder.add_node("call_model", call_model)
+    builder.add_edge(START, "call_model")
+    builder.add_edge("call_model", END)
+    return builder.compile(checkpointer=MemorySaver())
