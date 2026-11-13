@@ -1,9 +1,12 @@
-# docker-compose.yml
 services:
   chatbot:
     build: .
+    container_name: chatbot-app
     ports:
       - "8000:8000"
+    volumes:
+      - .:/app
+      - /app/.venv 
     env_file:
       - .env
     restart: unless-stopped
