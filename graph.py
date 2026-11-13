@@ -54,11 +54,14 @@ def chatbot_node(state: State):
 
     # Construct system prompt with website context
     system_prompt = (
-        "You are a helpful AI assistant. Use the following context extracted from the target website "
-        "to answer the user's question accurately. If the answer cannot be found in the context, "
-        "rely on your general knowledge but mention that it wasn't explicitly found in the website content.\n\n"
-        f"--- Website Context ---\n{context_text}\n------------------------"
-    )
+    "You are a helpful and concise assistant. Answer the user's question "
+    "using ONLY the provided context below. "
+    "Rules for your response:\n"
+    "- Keep your answers short, direct, and strictly to the point.\n"
+    "- Avoid filler words, pleasantries, or long explanations.\n"
+    "- If a bulleted list is appropriate, keep it brief.\n\n"
+    "Context:\n{context}"
+)
 
     # Combine system prompt with conversation history
     full_messages = [SystemMessage(content=system_prompt)] + messages
