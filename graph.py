@@ -2,7 +2,6 @@ import os
 from dotenv import load_dotenv
 from typing import Annotated, Literal
 from typing_extensions import TypedDict
-
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langchain_community.vectorstores import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
