@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quality Resource LLC – AI Assistant</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 h-screen flex flex-col items-center justify-center p-4">
+
+  <div class="w-full max-w-2xl bg-white rounded-2xl shadow-lg flex flex-col h-[85vh] overflow-hidden border border-slate-200">
+    
+    <!-- Header -->
+    <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+      <div>
+        <h1 class="text-lg font-semibold">Quality Resource LLC Assistant</h1>
+        <p class="text-xs text-slate-400">Powered by RAG &amp; LangGraph</p>
+      </div>
+      <button id="new-chat-btn" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 transition">
+        New Session
+      </button>
+    </div>
+
+    <!-- Chat Messages Container -->
+    <div id="chat-box" class="flex-1 overflow-y-auto p-6 space-y-4">
+      <div class="flex items-start gap-3">
+        <div class="bg-slate-200 text-slate-800 rounded-2xl rounded-tl-none px-4 py-3 text-sm max-w-[80%]">
+          Hello! Ask me anything about Quality Resource LLC's website or services.
+        </div>
+      </div>
+    </div>
+
+    <!-- Input Form -->
+    <form id="chat-form" class="border-t border-slate-200 p-4 bg-slate-50 flex gap-3">
+      <input
+        id="user-input"
+        type="text"
+        placeholder="Type your question..."
+        autocomplete="off"
+        required
+        class="flex-1 rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+      />
+      <button
+        id="send-btn"
+        type="submit"
+        class="bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium px-5 py-2.5 rounded-xl transition disabled:opacity-50"
+      >
+        Send
+      </button>
+    </form>
+
+  </div>
+
+  <script>
+    const chatBox = document.getElementById("chat-box");
+    const chatForm = document.getElementById("chat-form");
+    const userInput = document.getElementById("user-input");
+    const sendBtn = document.getElementById("send-btn");
+    const newChatBtn = document.getElementById("new-chat-btn");
+
+    // Generate a unique thread_id per session so LangGraph remembers context
+    let threadId = "web-" + Math.random().toString(36).substring(2, 10);
+
+    newChatBtn.addEventListener("click", () => {
+      threadId = "web-" + Math.random().toString(36).substring(2, 10);
+      chatBox.innerHTML = `
+        <div class="flex items-start gap-3">
+          <div class="bg-slate-200 text-slate-800 rounded-2xl rounded-tl-none px-4 py-3 text-sm max-w-[80%]">
+            Started a new session. How can I help you?
+          </div>
+        </div>
+      `;
+    });
+
+    function appendMessage(role, text = "") {
+      const wrapper = document.createElement("div");
+      wrapper.className = role === "user" ? "flex justify-end" : "flex items-start gap-3";
+
+      const bubble = document.createElement("div");
+      bubble.className = role === "user"
+        ? "bg-slate-900 text-white rounded-2xl rounded-tr-none px-4 py-3 text-sm max-w-[80%] whitespace-pre-wrap"
+        : "bg-slate-200 text-slate-800 rounded-2xl rounded-tl-none px-4 py-3 text-sm max-w-[80%] whitespace-pre-wrap";
+      bubble.textContent = text;
+
+      wrapper.appendChild(bubble);
+      chatBox.appendChild(wrapper);
+      chatBox.scrollTop = chatBox.scrollHeight;
+      return bubble;
+    }
+
+    chatForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const message = userInput.value.trim();
+      if (!message) return;
+
+      appendMessage("user", message);
+      userInput.value = "";
+      userInput.disabled = true;
+      sendBtn.disabled = true;
+
+      const botBubble = appendMessage("bot", "...");
+
+      try {
+        // Connects to your streaming endpoint for real-time token typing
+        const response = await fetch("/chat/stream", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message, thread_id: threadId })
+        });
+
+        if (!response.ok) throw new Error("Server error: " + response.status);
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        botBubble.textContent = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split("\n");
+
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              const dataStr = line.replace("data: ", "").trim();
+              if (dataStr === "[DONE]") break;
+              try {
+                const parsed = JSON.parse(dataStr);
+                if (parsed.token) {
+                  botBubble.textContent += parsed.token;
+                  chatBox.scrollTop = chatBox.scrollHeight;
+                }
+              } catch (err) {
+                // Ignore partial JSON chunks until complete
+              }
+            }
+          }
+        }
+      } catch (error) {
+        botBubble.textContent = "Error: Could not reach the chatbot server.";
+      } finally {
+        userInput.disabled = false;
+        sendBtn.disabled = false;
+        userInput.focus();
+      }
+    });
+  </script>
+</body>
+</html>
