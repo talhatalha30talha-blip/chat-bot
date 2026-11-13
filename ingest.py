@@ -4,7 +4,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 
-# Directory where Chroma vector store will save data locally
+
 PERSIST_DIRECTORY = "./chroma_db"
 
 def ingest_website(url: str):
