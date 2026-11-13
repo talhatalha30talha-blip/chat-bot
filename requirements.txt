@@ -6,7 +6,6 @@ langchain-openai
 langchain-huggingface
 sentence-transformers
 langgraph
-chromadb
 beautifulsoup4
 python-dotenv
 pydantic

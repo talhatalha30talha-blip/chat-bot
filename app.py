@@ -7,12 +7,9 @@ from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from langchain_core.messages import HumanMessage
-from graph import build_graph
+from graph import graph  # Imports your compiled RAG graph from graph.py[cite: 2]
 
 load_dotenv()
-
-# Build the graph once at startup and reuse it across requests
-graph = build_graph()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -20,8 +17,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Quality Resource LLC Chatbot", lifespan=lifespan)
 
-# Optional: Mount static directory if you have a frontend folder
-# app.mount("/static", StaticFiles(directory="static"), name="static")
+# Mount the static files directory so assets like CSS/JS load correctly
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 class ChatRequest(BaseModel):
     message: str
@@ -29,8 +26,8 @@ class ChatRequest(BaseModel):
 
 @app.get("/")
 def serve_ui():
-    """Serve the HTML chat interface or status message at root."""
-    return {"status": "RAG Chatbot API is running", "docs": "/docs"}
+    """Serve the HTML chat interface at the root URL."""
+    return FileResponse("static/index.html")
 
 @app.get("/health")
 def health():
