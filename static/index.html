@@ -23,18 +23,16 @@
 
   <div class="w-full max-w-2xl bg-white rounded-2xl shadow-lg flex flex-col h-[85vh] overflow-hidden border border-slate-200">
     
-    <!-- Header -->
     <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
       <div>
         <h1 class="text-lg font-semibold">Quality Resource LLC Assistant</h1>
-        <p class="text-xs text-slate-400">Powered by RAG &amp; LangGraph</p>
+        <p class="text-xs text-slate-400">Powered by AIronics AI</p>
       </div>
       <button id="new-chat-btn" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 transition">
         New Session
       </button>
     </div>
 
-    <!-- Chat Messages Container -->
     <div id="chat-box" class="flex-1 overflow-y-auto p-6 space-y-4">
       <div class="flex items-start gap-3">
         <div class="bg-slate-200 text-slate-800 rounded-2xl rounded-tl-none px-4 py-3 text-sm max-w-[80%] markdown-body">
@@ -43,7 +41,6 @@
       </div>
     </div>
 
-    <!-- Input Form -->
     <form id="chat-form" class="border-t border-slate-200 p-4 bg-slate-50 flex gap-3">
       <input
         id="user-input"
@@ -84,8 +81,6 @@
       `;
     });
 
-    // Robust built-in Markdown Parser (handles bold **text**, bullet points -, and paragraphs)
-    // Enhanced Markdown Parser (Handles tables, bold **text**, bullet points, and line breaks)
     function parseMarkdown(text) {
       if (!text) return "";
       
@@ -104,9 +99,7 @@
       for (let i = 0; i < lines.length; i++) {
         let line = lines[i].trim();
 
-        // Check if line is part of a Markdown table (starts and ends with |)
         if (line.startsWith('|') && line.endsWith('|')) {
-          // Skip the separator line like |---|---|---|
           if (line.includes('---')) {
             continue;
           }
@@ -118,7 +111,6 @@
           tableRows.push(line);
           continue;
         } else if (inTable) {
-          // Table ended, compile rows into an HTML table
           let tableHtml = '<table>';
           tableRows.forEach((rowStr, rowIndex) => {
             let cells = rowStr.split('|').filter(c => c.trim() !== '');
@@ -138,7 +130,6 @@
           tableRows = [];
         }
 
-        // Convert bullet points (- item or * item) into list items
         if (line.startsWith('- ') || line.startsWith('* ')) {
           if (inTable) { processedLines.push('</table>'); inTable = false; }
           if (!inList) {
@@ -155,12 +146,10 @@
           }
         }
 
-        // Convert **bold** to <strong>bold</strong> on normal lines
         let formattedLine = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
         processedLines.push(formattedLine);
       }
 
-      // Close open table or list if text ends with them
       if (inTable) {
         let tableHtml = '<table>';
         tableRows.forEach((rowStr, rowIndex) => {
