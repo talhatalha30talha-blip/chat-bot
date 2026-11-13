@@ -5,6 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Quality Resource LLC – AI Assistant</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Add Marked.js for Markdown parsing and DOMPurify for security -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.8/purify.min.js"></script>
+  
+  <!-- Add simple styling for rendered markdown tables and text -->
+  <style>
+    .markdown-body table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+    .markdown-body th, .markdown-body td { border: 1px solid #cbd5e1; padding: 6px 10px; font-size: 0.875rem; }
+    .markdown-body th { background-color: #f1f5f9; font-weight: 600; }
+    .markdown-body ul { list-style-type: disc; padding-left: 20px; margin: 4px 0; }
+    .markdown-body ol { list-style-type: decimal; padding-left: 20px; margin: 4px 0; }
+    .markdown-body p { margin-bottom: 6px; }
+  </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quality Resource LLC – AI Assistant</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-100 h-screen flex flex-col items-center justify-center p-4">
 
@@ -58,7 +75,6 @@
     const sendBtn = document.getElementById("send-btn");
     const newChatBtn = document.getElementById("new-chat-btn");
 
-    // Generate a unique thread_id per session so LangGraph remembers context
     let threadId = "web-" + Math.random().toString(36).substring(2, 10);
 
     newChatBtn.addEventListener("click", () => {
@@ -77,10 +93,15 @@
       wrapper.className = role === "user" ? "flex justify-end" : "flex items-start gap-3";
 
       const bubble = document.createElement("div");
-      bubble.className = role === "user"
-        ? "bg-slate-900 text-white rounded-2xl rounded-tr-none px-4 py-3 text-sm max-w-[80%] whitespace-pre-wrap"
-        : "bg-slate-200 text-slate-800 rounded-2xl rounded-tl-none px-4 py-3 text-sm max-w-[80%] whitespace-pre-wrap";
-      bubble.textContent = text;
+      
+      if (role === "user") {
+        bubble.className = "bg-slate-900 text-white rounded-2xl rounded-tr-none px-4 py-3 text-sm max-w-[80%] whitespace-pre-wrap";
+        bubble.textContent = text;
+      } else {
+        // Bot bubble uses markdown styling container
+        bubble.className = "bg-slate-200 text-slate-800 rounded-2xl rounded-tl-none px-4 py-3 text-sm max-w-[80%] markdown-body overflow-x-auto";
+        bubble.innerHTML = DOMPurify.sanitize(marked.parse(text));
+      }
 
       wrapper.appendChild(bubble);
       chatBox.appendChild(wrapper);
@@ -98,10 +119,18 @@
       userInput.disabled = true;
       sendBtn.disabled = true;
 
-      const botBubble = appendMessage("bot", "...");
+      // Create initial placeholder bubble for bot
+      const botBubbleWrapper = document.createElement("div");
+      botBubbleWrapper.className = "flex items-start gap-3";
+      const botBubble = document.createElement("div");
+      botBubble.className = "bg-slate-200 text-slate-800 rounded-2xl rounded-tl-none px-4 py-3 text-sm max-w-[80%] markdown-body overflow-x-auto";
+      botBubble.textContent = "...";
+      botBubbleWrapper.appendChild(botBubble);
+      chatBox.appendChild(botBubbleWrapper);
+
+      let rawFullResponse = "";
 
       try {
-        // Connects to your streaming endpoint for real-time token typing
         const response = await fetch("/chat/stream", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -112,7 +141,7 @@
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder("utf-8");
-        botBubble.textContent = "";
+
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
@@ -127,11 +156,13 @@
               try {
                 const parsed = JSON.parse(dataStr);
                 if (parsed.token) {
-                  botBubble.textContent += parsed.token;
+                  rawFullResponse += parsed.token;
+                  // Render markdown dynamically as tokens stream in
+                  botBubble.innerHTML = DOMPurify.sanitize(marked.parse(rawFullResponse));
                   chatBox.scrollTop = chatBox.scrollHeight;
                 }
               } catch (err) {
-                // Ignore partial JSON chunks until complete
+                // Ignore incomplete JSON chunks
               }
             }
           }
