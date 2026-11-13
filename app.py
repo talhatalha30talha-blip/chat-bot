@@ -1,4 +1,3 @@
-# app.py
 import json
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
@@ -7,7 +6,7 @@ from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from langchain_core.messages import HumanMessage
-from graph import graph  # Imports your compiled RAG graph from graph.py[cite: 2]
+from graph import graph  
 
 load_dotenv()
 
@@ -17,7 +16,6 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Quality Resource LLC Chatbot", lifespan=lifespan)
 
-# Mount the static files directory so assets like CSS/JS load correctly
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 class ChatRequest(BaseModel):
