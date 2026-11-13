@@ -85,6 +85,7 @@
     });
 
     // Robust built-in Markdown Parser (handles bold **text**, bullet points -, and paragraphs)
+    // Enhanced Markdown Parser (Handles tables, bold **text**, bullet points, and line breaks)
     function parseMarkdown(text) {
       if (!text) return "";
       
@@ -94,36 +95,93 @@
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;");
 
-      // Convert **bold** to <strong>bold</strong>
-      html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-
-      // Convert bullet points (- item or * item) into list items
       let lines = html.split('\n');
-      let inList = false;
       let processedLines = [];
+      let inList = false;
+      let inTable = false;
+      let tableRows = [];
 
-      for (let line of lines) {
-        let trimmed = line.trim();
-        if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+      for (let i = 0; i < lines.length; i++) {
+        let line = lines[i].trim();
+
+        // Check if line is part of a Markdown table (starts and ends with |)
+        if (line.startsWith('|') && line.endsWith('|')) {
+          // Skip the separator line like |---|---|---|
+          if (line.includes('---')) {
+            continue;
+          }
+          if (!inTable) {
+            if (inList) { processedLines.push('</ul>'); inList = false; }
+            inTable = true;
+            tableRows = [];
+          }
+          tableRows.push(line);
+          continue;
+        } else if (inTable) {
+          // Table ended, compile rows into an HTML table
+          let tableHtml = '<table>';
+          tableRows.forEach((rowStr, rowIndex) => {
+            let cells = rowStr.split('|').filter(c => c.trim() !== '');
+            tableHtml += '<tr>';
+            cells.forEach(cell => {
+              let cellContent = cell.trim().replace(/&lt;br&gt;/g, '<br>');
+              // Parse bold inside table cells
+              cellContent = cellContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+              let tag = rowIndex === 0 ? 'th' : 'td';
+              tableHtml += `<${tag}>${cellContent}</${tag}>`;
+            });
+            tableHtml += '</tr>';
+          });
+          tableHtml += '</table>';
+          processedLines.push(tableHtml);
+          inTable = false;
+          tableRows = [];
+        }
+
+        // Convert bullet points (- item or * item) into list items
+        if (line.startsWith('- ') || line.startsWith('* ')) {
+          if (inTable) { processedLines.push('</table>'); inTable = false; }
           if (!inList) {
             processedLines.push('<ul>');
             inList = true;
           }
-          processedLines.push(`<li>${trimmed.substring(2)}</li>`);
+          let itemText = line.substring(2).replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+          processedLines.push(`<li>${itemText}</li>`);
+          continue;
         } else {
           if (inList) {
             processedLines.push('</ul>');
             inList = false;
           }
-          processedLines.push(line);
         }
+
+        // Convert **bold** to <strong>bold</strong> on normal lines
+        let formattedLine = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        processedLines.push(formattedLine);
+      }
+
+      // Close open table or list if text ends with them
+      if (inTable) {
+        let tableHtml = '<table>';
+        tableRows.forEach((rowStr, rowIndex) => {
+          let cells = rowStr.split('|').filter(c => c.trim() !== '');
+          tableHtml += '<tr>';
+          cells.forEach(cell => {
+            let cellContent = cell.trim().replace(/&lt;br&gt;/g, '<br>');
+            cellContent = cellContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            let tag = rowIndex === 0 ? 'th' : 'td';
+            tableHtml += `<${tag}>${cellContent}</${tag}>`;
+          });
+          tableHtml += '</tr>';
+        });
+        tableHtml += '</table>';
+        processedLines.push(tableHtml);
       }
       if (inList) {
         processedLines.push('</ul>');
       }
 
-      html = processedLines.join('<br>');
-      return html;
+      return processedLines.join('<br>');
     }
 
     function appendMessage(role, text = "") {
