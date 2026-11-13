@@ -1,5 +1,5 @@
+# app.py
 import json
-
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -7,9 +7,12 @@ from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from langchain_core.messages import HumanMessage
-from graph import graph  # or build_graph() depending on your setup
+from graph import build_graph
 
 load_dotenv()
+
+# Build the graph once at startup and reuse it across requests
+graph = build_graph()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -17,17 +20,17 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Quality Resource LLC Chatbot", lifespan=lifespan)
 
-# 1. Mount the static directory so CSS/JS assets load properly
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# Optional: Mount static directory if you have a frontend folder
+# app.mount("/static", StaticFiles(directory="static"), name="static")
 
 class ChatRequest(BaseModel):
     message: str
     thread_id: str = "default"
 
-# 2. Serve your custom HTML UI at the root URL
 @app.get("/")
 def serve_ui():
-    return FileResponse("static/index.html")
+    """Serve the HTML chat interface or status message at root."""
+    return {"status": "RAG Chatbot API is running", "docs": "/docs"}
 
 @app.get("/health")
 def health():
@@ -35,6 +38,7 @@ def health():
 
 @app.post("/chat")
 def chat(req: ChatRequest):
+    """Synchronous chat: returns the full assistant reply as JSON."""
     config = {"configurable": {"thread_id": req.thread_id}}
     result = graph.invoke(
         {"messages": [HumanMessage(content=req.message)]},
@@ -45,6 +49,7 @@ def chat(req: ChatRequest):
 
 @app.post("/chat/stream")
 async def chat_stream(req: ChatRequest):
+    """Streaming chat: yields Server-Sent Events as the model generates tokens."""
     config = {"configurable": {"thread_id": req.thread_id}}
 
     async def event_generator():
