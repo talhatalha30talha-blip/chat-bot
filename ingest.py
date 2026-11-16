@@ -1,7 +1,6 @@
-# ingest.py
 import os
-import shutil
 from typing import List, Optional
+import chromadb
 from langchain_community.document_loaders import WebBaseLoader, PyPDFLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -10,6 +9,7 @@ from langchain_core.documents import Document
 
 PERSIST_DIRECTORY = "./chroma_db"
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+COLLECTION_NAME = "langchain"
 
 
 def is_knowledge_base_ready() -> bool:
@@ -17,12 +17,9 @@ def is_knowledge_base_ready() -> bool:
     if not os.path.exists(PERSIST_DIRECTORY):
         return False
     try:
-        embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
-        vector_store = Chroma(
-            persist_directory=PERSIST_DIRECTORY,
-            embedding_function=embeddings
-        )
-        return vector_store._collection.count() > 0
+        client = chromadb.PersistentClient(path=PERSIST_DIRECTORY)
+        collection = client.get_or_create_collection(name=COLLECTION_NAME)
+        return collection.count() > 0
     except Exception:
         return False
 
@@ -33,7 +30,7 @@ def ingest_sources(
     raw_text: Optional[str] = None,
     reset_existing: bool = True
 ) -> dict:
-    """Ingests URLs, uploaded files (PDF/TXT/MD/CSV), and/or raw text from the UI setup into ./chroma_db."""
+    """Ingests URLs, uploaded files (PDF/TXT/MD/CSV), and/or raw text into ./chroma_db without file-lock errors."""
     docs: List[Document] = []
 
     # 1. Load website URLs provided in the setup UI
@@ -52,7 +49,6 @@ def ingest_sources(
             else:
                 docs.extend(TextLoader(path, encoding="utf-8", autodetect_encoding=True).load())
 
-    # 3. Load raw custom business information
     if raw_text and raw_text.strip():
         docs.append(Document(page_content=raw_text.strip(), metadata={"source": "custom_setup_text"}))
 
@@ -60,7 +56,11 @@ def ingest_sources(
         raise ValueError("Please provide at least one valid URL, document, or text block.")
 
     if reset_existing and os.path.exists(PERSIST_DIRECTORY):
-        shutil.rmtree(PERSIST_DIRECTORY)
+        client = chromadb.PersistentClient(path=PERSIST_DIRECTORY)
+        try:
+            client.delete_collection(name=COLLECTION_NAME)
+        except Exception:
+            pass
 
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000,
@@ -72,7 +72,8 @@ def ingest_sources(
     Chroma.from_documents(
         documents=chunks,
         embedding=embeddings,
-        persist_directory=PERSIST_DIRECTORY
+        persist_directory=PERSIST_DIRECTORY,
+        collection_name=COLLECTION_NAME
     )
 
     return {
