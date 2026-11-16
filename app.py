@@ -1,4 +1,3 @@
-# app.py
 import os
 import json
 import tempfile
@@ -28,6 +27,7 @@ def load_widget_config() -> dict:
             return json.load(f)
     return {
         "bot_name": "AI Assistant",
+        "company_name": "our company",
         "welcome_message": "Hi there! How can I help you today?",
         "primary_color": "#2563eb",
     }
@@ -82,11 +82,12 @@ def health():
 
 @app.get("/status")
 def widget_status():
-    """Returns whether first-time setup is completed plus saved UI branding."""
+    """Returns whether first-time setup is completed """
     config = load_widget_config()
     return {
         "is_configured": is_knowledge_base_ready(),
         "bot_name": config.get("bot_name", "AI Assistant"),
+        "company_name": config.get("company_name", ""),
         "welcome_message": config.get("welcome_message", "Hi there! How can I help you today?"),
         "primary_color": config.get("primary_color", "#2563eb"),
     }
@@ -96,6 +97,7 @@ def widget_status():
 async def setup_widget(
     pin: str = Form(...),
     bot_name: str = Form("AI Assistant"),
+    company_name: str = Form("our company"),
     welcome_message: str = Form("Hi there! How can I help you today?"),
     primary_color: str = Form("#2563eb"),
     urls: str = Form(""),
@@ -129,11 +131,11 @@ async def setup_widget(
 
         save_widget_config({
             "bot_name": bot_name,
+            "company_name": company_name,
             "welcome_message": welcome_message,
             "primary_color": primary_color,
         })
 
-        # Reload graph.py so graph.graph immediately connects to the newly ingested chroma_db
         importlib.reload(graph_module)
 
         return {"status": "configured", "details": result}
@@ -149,7 +151,6 @@ async def setup_widget(
 
 @app.post("/chat")
 def chat(req: ChatRequest):
-    """Synchronous chat: returns the full assistant reply as JSON."""
     config = {"configurable": {"thread_id": req.thread_id}}
     result = graph_module.graph.invoke(
         {"messages": [HumanMessage(content=req.message)]},
@@ -161,7 +162,6 @@ def chat(req: ChatRequest):
 
 @app.post("/chat/stream")
 async def chat_stream(req: ChatRequest):
-    """Streaming chat: yields Server-Sent Events as the model generates tokens."""
     config = {"configurable": {"thread_id": req.thread_id}}
 
     async def event_generator():
