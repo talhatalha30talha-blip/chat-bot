@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>External Client Website – Widget Test</title>
+  <style>
+    /* Intentionally aggressive host styles to prove Shadow DOM isolation works */
+    body {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      background: #f4f1ea;
+      color: #2c2a29;
+      line-height: 1.6;
+    }
+    header {
+      background: #1f2937;
+      color: #ffffff;
+      padding: 20px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 22px;
+    }
+    nav a {
+      color: #d1d5db;
+      text-decoration: none;
+      margin-left: 20px;
+      font-family: sans-serif;
+      font-size: 14px;
+    }
+    main {
+      max-width: 860px;
+      margin: 50px auto;
+      padding: 0 24px;
+    }
+    .hero {
+      background: #ffffff;
+      padding: 36px;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+    }
+    .badge {
+      display: inline-block;
+      background: #fef3c7;
+      color: #92400e;
+      font-family: sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 999px;
+      margin-bottom: 12px;
+    }
+    button {
+      /* Global button rule to verify it doesn't break the widget's buttons */
+      background: #dc2626;
+      color: yellow;
+      padding: 12px 24px;
+      border: 3px solid black;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    code {
+      background: #e5e7eb;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Acme External Website (WordPress / HTML Simulation)</h1>
+    <nav>
+      <a href="#">Home</a>
+      <a href="#">Services</a>
+      <a href="#">About</a>
+      <a href="#">Contact</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="hero">
+      <span class="badge">TEST ENVIRONMENT</span>
+      <h2>Testing Single-File Embeddable Chat Widget</h2>
+      <p>
+        This page simulates a third-party website (such as WordPress, Webflow, Shopify, or a static HTML site)
+        with aggressive global CSS rules (<code>Georgia</code> serif fonts and red/yellow global <code>&lt;button&gt;</code> styles).
+      </p>
+      <p>
+        Look at the <strong>bottom-right corner</strong>: your floating chat bubble is injected automatically via a single
+        <code>&lt;script&gt;</code> tag and isolated inside a Shadow DOM so none of this page's styles affect it.
+      </p>
+      <button onclick="alert('Host website button clicked!')">Host Website Button</button>
+    </div>
+  </main>
+
+  <script src="http://localhost:8000/widget.js" async></script>
+
+</body>
+</html>

@@ -12,7 +12,7 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
 from langgraph.checkpoint.memory import MemorySaver
 
-load_dotenv()
+load_dotenv(override=True)
 
 CONFIG_FILE = "./widget_config.json"
 

@@ -1,5 +1,19 @@
+# Secrets & Environment
+.env
+
+# Virtual Environments
 .venv/
 venv/
-.env
+
+# Runtime Knowledge Base & Per-Site Setup Config
+chroma_db/
+widget_config.json
+
+# Local Test File (optional - remove this line if you want to keep it in Git)
+dummy_site.html
+
+# Python Cache
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
