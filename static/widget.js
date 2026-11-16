@@ -14,6 +14,9 @@
   const STORAGE_THREAD_KEY = "rag_widget_thread_id";
   const STORAGE_HISTORY_KEY = "rag_widget_chat_history";
 
+  const urlParams = new URLSearchParams(window.location.search);
+  const setupQueryRequested = urlParams.get("chatbot_setup") === "1";
+
   let threadId = localStorage.getItem(STORAGE_THREAD_KEY);
   if (!threadId) {
     threadId = "widget_" + Math.random().toString(36).substring(2, 11);
@@ -43,18 +46,17 @@
   const shadow = host.attachShadow({ mode: "open" });
 
   let widgetState = {
-    isOpen: false,
+    isOpen: setupQueryRequested,
     isConfigured: false,
-    forceSetup: false,
+    forceSetup: setupQueryRequested,
     botName: "AI Assistant",
     companyName: "",
     welcomeMessage: "Hi there! How can I help you today?",
     primaryColor: "#2563eb",
     isStreaming: false,
-    messages: loadSavedMessages(), // [{ role: "user" | "bot", text: "..." }]
+    messages: loadSavedMessages(),
   };
 
-  // Clean plain-text & list Markdown formatter (strips raw table pipes into clean text)
   function formatMarkdown(text) {
     const rawLines = (text || "").split(/\r?\n/);
     const output = [];
@@ -76,12 +78,10 @@
     for (let rawLine of rawLines) {
       const trimmed = rawLine.trim();
 
-      // Skip Markdown table separator rows like |---|---|
       if (/^\|?[\s:-]+\|[\s|:-]*$/.test(trimmed)) {
         continue;
       }
 
-      // Convert any accidental pipe-table row into clean readable text
       if (trimmed.startsWith("|") && trimmed.endsWith("|")) {
         if (inList) {
           output.push("</ul>");
@@ -98,7 +98,6 @@
         continue;
       }
 
-      // Bullet list items (- item or * item)
       const bulletMatch = trimmed.match(/^[-*•]\s+(.+)$/);
       if (bulletMatch) {
         if (!inList) {
@@ -344,18 +343,6 @@
           color: #ffffff;
           border-bottom-right-radius: 4px;
         }
-        .msg ul {
-          margin: 6px 0;
-          padding-left: 18px;
-        }
-        .msg pre {
-          background: #111827;
-          color: #f9fafb;
-          padding: 8px;
-          border-radius: 6px;
-          overflow-x: auto;
-          font-size: 12px;
-        }
         .input-bar {
           padding: 10px 12px;
           background: #ffffff;
@@ -408,8 +395,8 @@
       <div class="window" id="chat-window">
         <div class="header">
           <div>
-            <div class="header-title">${showSetup ? "First-Time Chatbot Setup" : widgetState.botName}</div>
-            <div class="header-sub">${showSetup ? "Configure your website knowledge base" : "Online • Ask anything"}</div>
+            <div class="header-title">${showSetup ? "Chatbot Knowledge Setup" : widgetState.botName}</div>
+            <div class="header-sub">${showSetup ? "Admin Configuration (PIN Required)" : "Online • Ask anything"}</div>
           </div>
           <div class="header-actions">
             ${
@@ -418,10 +405,8 @@
                 : ""
             }
             ${
-              widgetState.isConfigured
-                ? `<button class="icon-btn" id="reconfig-btn" title="${widgetState.forceSetup ? "Back to Chat" : "Reconfigure Knowledge Base"}">${
-                    widgetState.forceSetup ? "💬" : "⚙"
-                  }</button>`
+              widgetState.isConfigured && widgetState.forceSetup
+                ? `<button class="icon-btn" id="back-chat-btn" title="Back to Chat">💬</button>`
                 : ""
             }
             <button class="icon-btn" id="close-btn" title="Minimize">✕</button>
@@ -433,7 +418,7 @@
             ? `
           <form class="setup-body" id="setup-form">
             <div class="setup-intro">
-              Welcome! Add your website URLs, documents, or business info below to train your assistant for this website.
+              Add your website URLs, documents, or business info below to train your assistant.
             </div>
 
             <div class="row-2">
@@ -506,7 +491,7 @@
   function attachEvents() {
     const toggleBtn = shadow.getElementById("toggle-btn");
     const closeBtn = shadow.getElementById("close-btn");
-    const reconfigBtn = shadow.getElementById("reconfig-btn");
+    const backChatBtn = shadow.getElementById("back-chat-btn");
     const newSessionBtn = shadow.getElementById("new-session-btn");
 
     if (toggleBtn) {
@@ -523,19 +508,19 @@
       };
     }
 
+    if (backChatBtn) {
+      backChatBtn.onclick = () => {
+        widgetState.forceSetup = false;
+        render();
+      };
+    }
+
     if (newSessionBtn) {
       newSessionBtn.onclick = () => {
         threadId = "widget_" + Math.random().toString(36).substring(2, 11);
         localStorage.setItem(STORAGE_THREAD_KEY, threadId);
         widgetState.messages = [];
         saveMessages([]);
-        render();
-      };
-    }
-
-    if (reconfigBtn) {
-      reconfigBtn.onclick = () => {
-        widgetState.forceSetup = !widgetState.forceSetup;
         render();
       };
     }
@@ -598,6 +583,14 @@
         const messagesBox = shadow.getElementById("messages-box");
         const userText = inputEl.value.trim();
         if (!userText) return;
+
+        // Secret admin command to open reconfiguration screen (still PIN-protected)
+        if (userText === "/setup") {
+          inputEl.value = "";
+          widgetState.forceSetup = true;
+          render();
+          return;
+        }
 
         inputEl.value = "";
         widgetState.isStreaming = true;
