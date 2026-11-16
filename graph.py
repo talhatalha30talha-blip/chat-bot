@@ -1,3 +1,4 @@
+# graph.py
 import os
 import json
 from dotenv import load_dotenv
@@ -52,10 +53,11 @@ def build_graph() -> StateGraph:
         retriever = None
 
     llm = ChatOpenAI(
-        model=os.getenv("MODEL_NAME", "llama3-70b-8192"),
+        model=os.getenv("MODEL_NAME", "llama-3.1-8b-instant"),
         api_key=os.getenv("OPENAI_API_KEY"),
         base_url=os.getenv("OPENAI_BASE_URL", "https://api.groq.com/openai/v1"),
-        temperature=0.3
+        temperature=0.1,
+        max_tokens=180
     )
 
     def chatbot_node(state: ChatState) -> dict:
@@ -70,13 +72,17 @@ def build_graph() -> StateGraph:
         bot_name, company_name = get_bot_identity()
 
         system_prompt = (
-            f"You are {bot_name}, a specialized and professional customer support assistant "
-            f"for {company_name}. You are an independent AI, NOT affiliated with OpenAI, ChatGPT, or any other company.\n\n"
-            "Identity & Persona Rules:\n"
-            f"- If asked who you are, always state that you are {bot_name}, the virtual assistant for {company_name}.\n"
-            "- Never mention OpenAI, ChatGPT, or LLMs.\n"
-            "- Keep your answers concise, direct, and strictly to the point. Answer as short as possible and to the point.\n\n"
-            f"Context from website knowledge base:\n{context_text}"
+            f"You are {bot_name}, the official customer support assistant for {company_name}.\n\n"
+            "STRICT GUARDRAILS & RULES:\n"
+            f"1. SCOPE LIMITATION: Answer ONLY questions directly related to {company_name}, its services, products, policies, or the provided knowledge base context below. "
+            f"If the user asks about general knowledge, coding, math, news, or anything unrelated to {company_name}, politely refuse and say: "
+            f"\"I can only answer questions related to {company_name} and our services.\"\n"
+            f"2. NO HALLUCINATION: Use ONLY the context provided below. If the answer is not in the context, say you do not have that information and suggest contacting {company_name} directly.\n"
+            "3. SHORT & DIRECT: Keep every answer extremely brief (maximum 2 to 3 short sentences or up to 3 short bullet points). Never write long paragraphs.\n"
+            "4. TEXT ONLY (NO TABLES): Never use Markdown tables, pipe characters (|), or ASCII grids. Respond only in plain conversational text or simple short bullet points.\n"
+            f"5. IDENTITY: Never mention OpenAI, ChatGPT, or AI models. You are {bot_name} for {company_name}.\n\n"
+            f"Knowledge Base Context for {company_name}:\n"
+            f"{context_text if context_text else 'No specific context found.'}"
         )
 
         full_messages = [SystemMessage(content=system_prompt)] + messages
