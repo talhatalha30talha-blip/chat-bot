@@ -5,8 +5,8 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - .:/app
-      - /app/.venv 
+      - ./chroma_db:/app/chroma_db
+      - ./widget_config.json:/app/widget_config.json
     env_file:
       - .env
     restart: unless-stopped
