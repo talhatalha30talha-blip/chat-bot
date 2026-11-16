@@ -1,4 +1,3 @@
-# graph.py
 import os
 import json
 from dotenv import load_dotenv
@@ -33,7 +32,6 @@ def get_bot_identity() -> tuple[str, str]:
 
 
 class ChatState(TypedDict):
-    """State shared across nodes in the graph."""
     messages: Annotated[list[AnyMessage], add_messages]
 
 
