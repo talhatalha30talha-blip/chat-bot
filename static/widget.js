@@ -54,24 +54,78 @@
     messages: loadSavedMessages(), // [{ role: "user" | "bot", text: "..." }]
   };
 
+  // Clean plain-text & list Markdown formatter (strips raw table pipes into clean text)
   function formatMarkdown(text) {
-    let escaped = (text || "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
+    const rawLines = (text || "").split(/\r?\n/);
+    const output = [];
+    let inList = false;
 
-    escaped = escaped.replace(/```([\s\S]*?)```/g, "<pre><code>$1</code></pre>");
-    escaped = escaped.replace(/`([^`]+)`/g, "<code>$1</code>");
-    escaped = escaped.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-    escaped = escaped.replace(/\*(.+?)\*/g, "<em>$1</em>");
-    escaped = escaped.replace(
-      /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
-      '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
-    );
-    escaped = escaped.replace(/^\s*[-*]\s+(.+)$/gm, "<li>$1</li>");
-    escaped = escaped.replace(/(<li>.*<\/li>)/gs, "<ul>$1</ul>");
-    escaped = escaped.replace(/\n/g, "<br>");
-    return escaped;
+    const inlineFormat = (str) =>
+      str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/`([^`]+)`/g, "<code>$1</code>")
+        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\*(.+?)\*/g, "<em>$1</em>")
+        .replace(
+          /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+          '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
+        );
+
+    for (let rawLine of rawLines) {
+      const trimmed = rawLine.trim();
+
+      // Skip Markdown table separator rows like |---|---|
+      if (/^\|?[\s:-]+\|[\s|:-]*$/.test(trimmed)) {
+        continue;
+      }
+
+      // Convert any accidental pipe-table row into clean readable text
+      if (trimmed.startsWith("|") && trimmed.endsWith("|")) {
+        if (inList) {
+          output.push("</ul>");
+          inList = false;
+        }
+        const cells = trimmed
+          .slice(1, -1)
+          .split("|")
+          .map((c) => c.trim())
+          .filter(Boolean);
+        if (cells.length > 0) {
+          output.push(`<p style="margin:4px 0;">${inlineFormat(cells.join(" — "))}</p>`);
+        }
+        continue;
+      }
+
+      // Bullet list items (- item or * item)
+      const bulletMatch = trimmed.match(/^[-*•]\s+(.+)$/);
+      if (bulletMatch) {
+        if (!inList) {
+          output.push('<ul style="margin:6px 0;padding-left:18px;">');
+          inList = true;
+        }
+        output.push(`<li style="margin-bottom:3px;">${inlineFormat(bulletMatch[1])}</li>`);
+        continue;
+      }
+
+      if (inList) {
+        output.push("</ul>");
+        inList = false;
+      }
+
+      if (trimmed === "") {
+        continue;
+      }
+
+      output.push(`<p style="margin:4px 0;">${inlineFormat(trimmed)}</p>`);
+    }
+
+    if (inList) {
+      output.push("</ul>");
+    }
+
+    return output.join("");
   }
 
   function renderMessagesHTML() {
